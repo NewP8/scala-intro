@@ -1,5 +1,7 @@
 package recfun
 
+import recfun.RecFun.balance
+
 object RecFun extends RecFunInterface {
 
   def main(args: Array[String]): Unit = {
@@ -22,30 +24,33 @@ object RecFun extends RecFunInterface {
   /**
    * Exercise 2
    */
-  def balance(chars: List[Char]): Boolean = balance(chars: List[Char], 0)
-
-  def balance(chars: List[Char], cnt: Int): Boolean = chars match {
-    case Nil => cnt == 0
-    case '(' :: xs => balance(xs, cnt+1)
-    case ')' :: xs => if (cnt > 0) balance(xs, cnt-1) else false
-    case _ :: xs => balance(xs, cnt)
+  def balance(chars: List[Char]): Boolean = {
+    def balance(chars: List[Char], cnt: Int): Boolean = chars match {
+      case Nil => cnt == 0
+      case '(' :: xs => balance(xs, cnt+1)
+      case ')' :: xs => if (cnt > 0) balance(xs, cnt-1) else false
+      case _ :: xs => balance(xs, cnt)
+    }
+    balance(chars: List[Char], 0)
   }
+
 
   /**
    * Exercise 3
    */
-  def countChange(money: Int, coins: List[Int]): Int = tentativi(money,coins,0)
-
-  def tentativi(m:Int, coins: List[Int], acc:Int): Int = {
-    if (acc == m) 1
-    else {
-      if (acc > m) 0
+  def countChange(money: Int, coins: List[Int]): Int = {
+    def countChangeAttempt(m:Int, coins: List[Int], acc:Int): Int = {
+      if (acc == m) 1
       else {
-        coins match {
-          case Nil => 0
-          case x :: xs => tentativi(m, coins, acc + x) + tentativi(m, xs, acc)
+        if (acc > m) 0
+        else {
+          coins match {
+            case Nil => 0
+            case x :: xs => countChangeAttempt(m, coins, acc + x) + countChangeAttempt(m, xs, acc)
+          }
         }
       }
     }
+    countChangeAttempt(money,coins,0)
   }
 }
