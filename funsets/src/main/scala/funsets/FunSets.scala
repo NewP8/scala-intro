@@ -18,7 +18,7 @@ trait FunSets extends FunSetsInterface {
   /**
    * Returns the set of the one given element.
    */
-  def singletonSet(elem: Int): FunSet = x => x == elem
+  def singletonSet(elem: Int): FunSet = _ == elem
 
 
   /**
@@ -54,7 +54,6 @@ trait FunSets extends FunSetsInterface {
    * Returns whether all bounded integers within `s` satisfy `p`.
    */
   def forall(s: FunSet, p: Int => Boolean): Boolean = {
-    true
     def iter(a: Int): Boolean = {
       if (a > bound) true
       else if (s(a) && !p(a)) false

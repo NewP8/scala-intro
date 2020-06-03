@@ -39,18 +39,18 @@ object RecFun extends RecFunInterface {
    * Exercise 3
    */
   def countChange(money: Int, coins: List[Int]): Int = {
-    def countChangeAttempt(m:Int, coins: List[Int], acc:Int): Int = {
-      if (acc == m) 1
+    def countChangeAttempt(coins: List[Int], acc:Int): Int = {
+      if (acc == money) 1
       else {
-        if (acc > m) 0
+        if (acc > money) 0
         else {
           coins match {
             case Nil => 0
-            case x :: xs => countChangeAttempt(m, coins, acc + x) + countChangeAttempt(m, xs, acc)
+            case x :: xs => countChangeAttempt(coins, acc + x) + countChangeAttempt(xs, acc)
           }
         }
       }
     }
-    countChangeAttempt(money,coins,0)
+    countChangeAttempt(coins,0)
   }
 }
