@@ -42,6 +42,10 @@ class HuffmanSuite {
       assertEquals("ab".toList, decode(t1, encode(t1)("ab".toList)))
     }
 
+  @Test def `quickEncode ab should be equal to encode ab`: Unit =
+    new TestTrees {
+      assertEquals(encode(t1)("ab".toList), quickEncode(t1)("ab".toList))
+    }
 
   @Rule def individualTestTimeout = new org.junit.rules.Timeout(10 * 1000)
 }

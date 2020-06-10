@@ -32,10 +32,10 @@ trait Huffman extends HuffmanInterface {
 
   def chars(tree: CodeTree): List[Char] = tree match {
     case Leaf(c, _) => List(c)
-    case Fork(left, right, cs, _) => cs
+    case Fork(_, _, cs, _) => cs
   }
 
-  def makeCodeTree(left: CodeTree, right: CodeTree) =
+  def makeCodeTree(left: CodeTree, right: CodeTree): CodeTree =
     Fork(left, right, chars(left) ::: chars(right), weight(left) + weight(right))
 
   // Part 2: Generating Huffman trees
@@ -111,13 +111,13 @@ trait Huffman extends HuffmanInterface {
   def combine(trees: List[CodeTree]): List[CodeTree] ={
     def insertSortedCodeTree(t: CodeTree, ts: List[CodeTree]): List[CodeTree] = {
       ts match {
-        case List() => List(t)
-        case t2 :: ts2 if weight(t) > weight(t2) => t2 :: insertSortedCodeTree(t, ts2)
-        case l => t :: l
+        case Nil => List(t)
+        case x :: xs if weight(t) > weight(x) => x :: insertSortedCodeTree(t, xs)
+        case _ => t :: ts
       }
     }
     trees match {
-      case t1 :: t2 :: ts => combine(insertSortedCodeTree(makeCodeTree(t1, t2), ts))
+      case t1 :: t2 :: ts => insertSortedCodeTree(makeCodeTree(t1, t2), ts)
       case a => a
     }
   }
@@ -138,7 +138,7 @@ trait Huffman extends HuffmanInterface {
     if (done(trees))
       trees
     else
-      combine(trees)
+      until(done,merge)(merge(trees))
   }
     
 
@@ -161,15 +161,17 @@ trait Huffman extends HuffmanInterface {
    */
   def decode(tree: CodeTree, bits: List[Bit]): List[Char] = {
 
-    def decodeChars(subtree: CodeTree, bits: List[Bit]): List[Char] = {
+    @scala.annotation.tailrec
+    def decodeChars2(subtree: CodeTree, bits: List[Bit], decodedChars: List[Char]): List[Char] = {
       (bits, subtree) match {
-        case (1::cs, Fork(_, right, _, _)) => decodeChars(right,cs)
-        case (0::cs, Fork(left, _, _, _)) => decodeChars(left,cs)
-        case (cs, Leaf(char, _)) => char :: decodeChars(tree, cs)
-        case (_, _) => List()
+        case (1::cs, Fork(_, right, _, _)) => decodeChars2(right,cs, decodedChars)
+        case (0::cs, Fork(left, _, _, _)) => decodeChars2(left,cs, decodedChars)
+        case (cs, Leaf(char, _)) => decodeChars2(tree, cs, decodedChars ::: List(char))
+        case _ => decodedChars
+
       }
     }
-    decodeChars(tree, bits)
+    decodeChars2(tree, bits, Nil)
   }
 
   /**
@@ -181,7 +183,7 @@ trait Huffman extends HuffmanInterface {
 
   /**
    * What does the secret message say? Can you decode it?
-   * For the decoding use the `frenchCode' Huffman tree defined above.
+   * For the decoding use the 'frenchCode' Huffman tree defined above.
    */
   val secret: List[Bit] = List(0,0,1,1,1,0,1,0,1,1,1,0,0,1,1,0,1,0,0,1,1,0,1,0,1,1,0,0,1,1,1,1,1,0,1,0,1,1,0,0,0,0,1,0,1,1,1,0,0,1,0,0,1,0,0,0,1,0,0,0,1,0,1)
 
@@ -200,19 +202,22 @@ trait Huffman extends HuffmanInterface {
    * into a sequence of bits.
    */
   def encode(tree: CodeTree)(text: List[Char]): List[Bit] = {
-    def encodeChar(subtree: CodeTree, c: Char): List[Int] = {
-      (subtree) match {
+    def encodeChar(subtree: CodeTree, c: Char): List[Bit] = {
+      subtree match {
         case Fork(left, _, _, _) if this.chars(left).contains(c) => 0 :: encodeChar(left, c)
         case Fork(_, right, _, _) => 1 :: encodeChar(right, c)
-        case _ => List()
+        case _ => Nil
       }
     }
 
-    var lb = List[Int]()
-    for(c <- text){
-      lb = lb ::: encodeChar(tree, c)
+    @scala.annotation.tailrec
+    def encodeText(text:List[Char], encodedText: List[Bit]): List[Bit]={
+      text match {
+        case Nil => encodedText
+        case c :: cs => encodeText(cs, encodedText ::: encodeChar(tree, c))
+      }
     }
-    lb
+    encodeText(text, Nil)
   }
 
   // Part 4b: Encoding using code table
@@ -238,7 +243,7 @@ trait Huffman extends HuffmanInterface {
   def convert(tree: CodeTree): CodeTable = {
     def convertAux(subtree: CodeTree, l: List[Bit]): CodeTable = {
       subtree match {
-        case Fork(left, right, chars, weight) =>
+        case Fork(left, right, _, _) =>
           mergeCodeTables(
             convertAux(left, l ::: List(0)),
             convertAux(right, l ::: List(1))
@@ -246,7 +251,7 @@ trait Huffman extends HuffmanInterface {
         case Leaf(char, _) => List((char, l))
       }
     }
-    convertAux(tree,List())
+    convertAux(tree,Nil)
   }
 
   /**
@@ -254,14 +259,15 @@ trait Huffman extends HuffmanInterface {
    * use it in the `convert` method above, this merge method might also do some transformations
    * on the two parameter code tables.
    */
-  def mergeCodeTables(a: CodeTable, b: CodeTable): CodeTable = {
-    for ((c,l) <- b) {
-      if (!a.map(_._1).contains(c)) {
-        a ::: List((c,l))
-      }
-    }
-    a
-  }
+  def mergeCodeTables(a: CodeTable, b: CodeTable): CodeTable = a ::: b
+//  {
+//    for ((c,l) <- b) {
+//      if (!a.map(_._1).contains(c)) {
+//        a ::: List((c,l))
+//      }
+//    }
+//    a
+//  }
 
   /**
    * This function encodes `text` according to the code tree `tree`.
@@ -270,11 +276,17 @@ trait Huffman extends HuffmanInterface {
    * and then uses it to perform the actual encoding.
    */
   def quickEncode(tree: CodeTree)(text: List[Char]): List[Bit] = {
-    var listaBit: List[Bit] = List()
-    for (c <- text) {
-      listaBit ::: List(codeBits(convert(tree))(c))
+
+    val codeTables = convert(tree)
+
+    @scala.annotation.tailrec
+    def quickEncodeAux(text: List[Char], encodedText: List[Bit]): List[Bit] = {
+      text match {
+        case Nil => encodedText
+        case c :: cs => quickEncodeAux(cs, encodedText ::: codeBits(codeTables)(c))
+      }
     }
-    listaBit
+    quickEncodeAux(text, Nil)
   }
 }
 
